@@ -1,64 +1,137 @@
-import streamlit as st
-import pickle
 import requests
+import pickle
+import os
 import pandas as pd
+import streamlit as st
+# CONFIG (CHANGE THIS ONLY)
+# -----------------------------------
+BASE = "https://huggingface.co/datasets/MSHD/movie-recommendation-data/resolve/main/"
 
-# Fetch poster for movie
-def fetch_poster(ID, api_key):
+# -----------------------------------
+# DOWNLOAD + LOAD FUNCTION
+# -----------------------------------
+def download_and_load(file_url, file_name):
+    
+    # If already exists → don't download again
+    if not os.path.exists(file_name):
+        print(f"Downloading {file_name}...")
+
+        r = requests.get(file_url)
+
+        if r.status_code != 200:
+            raise Exception(f"❌ Failed: {file_name} | Status: {r.status_code}")
+
+        # If HTML instead of pickle → wrong link
+        if r.content.startswith(b"<"):
+            raise Exception(f"❌ {file_name} is HTML, not pickle → check URL")
+
+        with open(file_name, "wb") as f:
+            f.write(r.content)
+
+    # Load pickle
+    with open(file_name, "rb") as f:
+        return pickle.load(f)
+
+
+# -----------------------------------
+# MOVIE FILES
+# -----------------------------------
+
+movie1  = download_and_load(BASE + "1th_movie_list.pkl?download=true",  "1.pkl")
+movie2  = download_and_load(BASE + "2th_movie_list.pkl?download=true",  "2.pkl")
+movie3  = download_and_load(BASE + "3th_movie_list.pkl?download=true",  "3.pkl")
+movie4  = download_and_load(BASE + "4th_movie_list.pkl?download=true",  "4.pkl")
+movie5  = download_and_load(BASE + "5th_movie_list.pkl?download=true",  "5.pkl")
+movie6  = download_and_load(BASE + "6th_movie_list.pkl?download=true",  "6.pkl")
+movie7  = download_and_load(BASE + "7th_movie_list.pkl?download=true",  "7.pkl")
+movie8  = download_and_load(BASE + "8th_movie_list.pkl?download=true",  "8.pkl")
+movie9  = download_and_load(BASE + "9th_movie_list.pkl?download=true",  "9.pkl")
+movie10 = download_and_load(BASE + "10th_movie_list.pkl?download=true", "10.pkl")
+
+
+# -----------------------------------
+# SIMILARITY FILES
+# -----------------------------------
+
+sim1  = download_and_load(BASE + "1th_similarity.pkl?download=true",  "1s.pkl")
+sim2  = download_and_load(BASE + "2th_similarity.pkl?download=true",  "2s.pkl")
+sim3  = download_and_load(BASE + "3th_similarity.pkl?download=true",  "3s.pkl")
+sim4  = download_and_load(BASE + "4th_similarity.pkl?download=true",  "4s.pkl")
+sim5  = download_and_load(BASE + "5th_similarity.pkl?download=true",  "5s.pkl")
+sim6  = download_and_load(BASE + "6th_similarity.pkl?download=true",  "6s.pkl")
+sim7  = download_and_load(BASE + "7th_similarity.pkl?download=true",  "7s.pkl")
+sim8  = download_and_load(BASE + "8th_similarity.pkl?download=true",  "8s.pkl")
+sim9  = download_and_load(BASE + "9th_similarity.pkl?download=true",  "9s.pkl")
+sim10 = download_and_load(BASE + "10th_similarity.pkl?download=true","10s.pkl")
+
+
+# -----------------------------------
+# OPTIONAL: STORE IN LISTS (EASY USE)
+# -----------------------------------
+
+all_movie_chunks = [
+    movie1, movie2, movie3, movie4, movie5,
+    movie6, movie7, movie8, movie9, movie10
+]
+
+similarity_matrices = [
+    sim1, sim2, sim3, sim4, sim5,
+    sim6, sim7, sim8, sim9, sim10
+]
+
+print("✅ All files loaded successfully!")
+# -------------------------------
+
+
+# Combine all movie chunks
+all_movies_df = pd.concat(all_movie_chunks, ignore_index=True)
+all_movies_titles = all_movies_df['Movie Name'].values
+
+# -------------------------------
+# POSTER FUNCTION
+# -------------------------------
+def fetch_poster(ID):
     try:
         url = f"http://www.omdbapi.com/?i={ID}&apikey=39be2013"
         data = requests.get(url).json()
-        # Handle cases where the poster is unavailable or invalid
         poster_url = data.get('Poster', 'https://via.placeholder.com/500x750?text=No+Poster+Available')
-        
-        # Check if the poster_url is 'N/A', which indicates no poster
+
         if poster_url == "N/A":
-            return 'https://via.placeholder.com/500x750?text=No+Poster+Available'  # fallback poster
-        
+            return 'https://via.placeholder.com/500x750?text=No+Poster+Available'
+
         return poster_url
-    except Exception as e:
-        st.error(f"Error fetching poster for {ID}: {e}")
-        return 'https://via.placeholder.com/500x750?text=Error+Fetching+Poster'
+    except:
+        return 'https://via.placeholder.com/500x750?text=Error'
 
-# Set your OMDb API key
-api_key = "39be2013"
-
-# Load movie data from pickle files
-all_movie_chunks = [
-    pickle.load(open(f"{i}th_movie_list.pkl", 'rb')) for i in range(1, 11)
-]
-all_movies_df = pd.concat(all_movie_chunks, ignore_index=True)
-
-# Extract movie titles for the dropdown
-all_movies_titles = all_movies_df['Movie Name'].values
-
-# Load similarity matrices from pickle files (optimized to avoid memory overload)
-similarity_matrices = [
-    pickle.load(open(f"{i}th_similarity.pkl", 'rb')) for i in range(1, 11)
-]
-
-# Define header and dropdown for movie selection
+# -------------------------------
+# UI
+# -------------------------------
 st.header("Indian Movie Recommender System")
 select_value = st.selectbox("Select movie from dropdown", all_movies_titles)
 
+# -------------------------------
+# RECOMMEND FUNCTION
+# -------------------------------
 def recommend(movie):
     try:
-        # Identify which chunk contains the selected movie and get its similarity matrix
         selected_similarity = None
         movies_chunk = None
+
         for idx, chunk in enumerate(all_movie_chunks):
             if movie in chunk['Movie Name'].values:
                 selected_similarity = similarity_matrices[idx]
                 movies_chunk = chunk
                 break
-        
-        if selected_similarity is None or movies_chunk is None:
-            st.error("Movie not found!")
+
+        if selected_similarity is None:
             return [], []
 
-        # Get the index of the selected movie
         index = movies_chunk[movies_chunk['Movie Name'] == movie].index[0]
-        distances = sorted(list(enumerate(selected_similarity[index])), reverse=True, key=lambda x: x[1])
+        distances = sorted(
+            list(enumerate(selected_similarity[index])),
+            reverse=True,
+            key=lambda x: x[1]
+        )
 
         recommend_movies = []
         recommend_posters = []
@@ -66,22 +139,23 @@ def recommend(movie):
         for i in distances[1:6]:
             movie_id = movies_chunk.iloc[i[0]]['ID']
             recommend_movies.append(movies_chunk.iloc[i[0]]['Movie Name'])
-            recommend_posters.append(fetch_poster(movie_id, api_key))
+            recommend_posters.append(fetch_poster(movie_id))
 
         return recommend_movies, recommend_posters
 
     except Exception as e:
-        st.error(f"Error in recommendation process: {e}")
+        st.error(f"Error: {e}")
         return [], []
 
-# Show recommendations when the button is pressed
+# -------------------------------
+# BUTTON
+# -------------------------------
 if st.button("Show Recommendation"):
     recommended_movies, recommended_posters = recommend(select_value)
-    if recommended_movies and recommended_posters:
-        col1, col2, col3, col4, col5 = st.columns(5)
-        for i, col in enumerate([col1, col2, col3, col4, col5]):
-            with col:
+
+    if recommended_movies:
+        cols = st.columns(5)
+        for i in range(5):
+            with cols[i]:
                 st.text(recommended_movies[i])
                 st.image(recommended_posters[i])
-
-//
