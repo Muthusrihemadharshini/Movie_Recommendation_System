@@ -1,91 +1,57 @@
-import requests
-import pickle
-import os
-import pandas as pd
 import streamlit as st
-# CONFIG (CHANGE THIS ONLY)
-# -----------------------------------
-BASE = "https://huggingface.co/datasets/MSHD/movie-recommendation-data/resolve/main/"
 
-# -----------------------------------
-# DOWNLOAD + LOAD FUNCTION
-# -----------------------------------
-def download_and_load(file_url, file_name):
-    
-    # If already exists → don't download again
-    if not os.path.exists(file_name):
-        print(f"Downloading {file_name}...")
+@st.cache_resource
+def load_data():
+    import requests
+    import pickle
+    import os
 
-        r = requests.get(file_url)
+    BASE = "https://huggingface.co/datasets/YOUR_USERNAME/movie-recommendation-data/resolve/main/"
 
-        if r.status_code != 200:
-            raise Exception(f"❌ Failed: {file_name} | Status: {r.status_code}")
+    def download_and_load(file_url, file_name):
+        if not os.path.exists(file_name):
+            r = requests.get(file_url)
+            if r.status_code != 200:
+                raise Exception(f"Failed: {file_name}")
+            if r.content.startswith(b"<"):
+                raise Exception(f"{file_name} is HTML")
+            with open(file_name, "wb") as f:
+                f.write(r.content)
 
-        # If HTML instead of pickle → wrong link
-        if r.content.startswith(b"<"):
-            raise Exception(f"❌ {file_name} is HTML, not pickle → check URL")
+        with open(file_name, "rb") as f:
+            return pickle.load(f)
 
-        with open(file_name, "wb") as f:
-            f.write(r.content)
+    # LOAD ALL FILES
+    movie1  = download_and_load(BASE + "1st_movie_list.pkl?download=true",  "1.pkl")
+    movie2  = download_and_load(BASE + "2nd_movie_list.pkl?download=true",  "2.pkl")
+    movie3  = download_and_load(BASE + "3rd_movie_list.pkl?download=true",  "3.pkl")
+    movie4  = download_and_load(BASE + "4th_movie_list.pkl?download=true",  "4.pkl")
+    movie5  = download_and_load(BASE + "5th_movie_list.pkl?download=true",  "5.pkl")
+    movie6  = download_and_load(BASE + "6th_movie_list.pkl?download=true",  "6.pkl")
+    movie7  = download_and_load(BASE + "7th_movie_list.pkl?download=true",  "7.pkl")
+    movie8  = download_and_load(BASE + "8th_movie_list.pkl?download=true",  "8.pkl")
+    movie9  = download_and_load(BASE + "9th_movie_list.pkl?download=true",  "9.pkl")
+    movie10 = download_and_load(BASE + "10th_movie_list.pkl?download=true", "10.pkl")
 
-    # Load pickle
-    with open(file_name, "rb") as f:
-        return pickle.load(f)
+    sim1  = download_and_load(BASE + "1st_similarity.pkl?download=true",  "1s.pkl")
+    sim2  = download_and_load(BASE + "2nd_similarity.pkl?download=true",  "2s.pkl")
+    sim3  = download_and_load(BASE + "3rd_similarity.pkl?download=true",  "3s.pkl")
+    sim4  = download_and_load(BASE + "4th_similarity.pkl?download=true",  "4s.pkl")
+    sim5  = download_and_load(BASE + "5th_similarity.pkl?download=true",  "5s.pkl")
+    sim6  = download_and_load(BASE + "6th_similarity.pkl?download=true",  "6s.pkl")
+    sim7  = download_and_load(BASE + "7th_similarity.pkl?download=true",  "7s.pkl")
+    sim8  = download_and_load(BASE + "8th_similarity.pkl?download=true",  "8s.pkl")
+    sim9  = download_and_load(BASE + "9th_similarity.pkl?download=true",  "9s.pkl")
+    sim10 = download_and_load(BASE + "10ths_similarity.pkl?download=true","10s.pkl")
 
+    all_movie_chunks = [movie1,movie2,movie3,movie4,movie5,movie6,movie7,movie8,movie9,movie10]
+    similarity_matrices = [sim1,sim2,sim3,sim4,sim5,sim6,sim7,sim8,sim9,sim10]
 
-# -----------------------------------
-# MOVIE FILES
-# -----------------------------------
-
-movie1  = download_and_load(BASE + "1th_movie_list.pkl?download=true",  "1.pkl")
-movie2  = download_and_load(BASE + "2th_movie_list.pkl?download=true",  "2.pkl")
-movie3  = download_and_load(BASE + "3th_movie_list.pkl?download=true",  "3.pkl")
-movie4  = download_and_load(BASE + "4th_movie_list.pkl?download=true",  "4.pkl")
-movie5  = download_and_load(BASE + "5th_movie_list.pkl?download=true",  "5.pkl")
-movie6  = download_and_load(BASE + "6th_movie_list.pkl?download=true",  "6.pkl")
-movie7  = download_and_load(BASE + "7th_movie_list.pkl?download=true",  "7.pkl")
-movie8  = download_and_load(BASE + "8th_movie_list.pkl?download=true",  "8.pkl")
-movie9  = download_and_load(BASE + "9th_movie_list.pkl?download=true",  "9.pkl")
-movie10 = download_and_load(BASE + "10th_movie_list.pkl?download=true", "10.pkl")
-
-
-# -----------------------------------
-# SIMILARITY FILES
-# -----------------------------------
-
-sim1  = download_and_load(BASE + "1th_similarity.pkl?download=true",  "1s.pkl")
-sim2  = download_and_load(BASE + "2th_similarity.pkl?download=true",  "2s.pkl")
-sim3  = download_and_load(BASE + "3th_similarity.pkl?download=true",  "3s.pkl")
-sim4  = download_and_load(BASE + "4th_similarity.pkl?download=true",  "4s.pkl")
-sim5  = download_and_load(BASE + "5th_similarity.pkl?download=true",  "5s.pkl")
-sim6  = download_and_load(BASE + "6th_similarity.pkl?download=true",  "6s.pkl")
-sim7  = download_and_load(BASE + "7th_similarity.pkl?download=true",  "7s.pkl")
-sim8  = download_and_load(BASE + "8th_similarity.pkl?download=true",  "8s.pkl")
-sim9  = download_and_load(BASE + "9th_similarity.pkl?download=true",  "9s.pkl")
-sim10 = download_and_load(BASE + "10th_similarity.pkl?download=true","10s.pkl")
+    return all_movie_chunks, similarity_matrices
 
 
-# -----------------------------------
-# OPTIONAL: STORE IN LISTS (EASY USE)
-# -----------------------------------
-
-all_movie_chunks = [
-    movie1, movie2, movie3, movie4, movie5,
-    movie6, movie7, movie8, movie9, movie10
-]
-
-similarity_matrices = [
-    sim1, sim2, sim3, sim4, sim5,
-    sim6, sim7, sim8, sim9, sim10
-]
-
-print("✅ All files loaded successfully!")
-# -------------------------------
-
-
-# Combine all movie chunks
-all_movies_df = pd.concat(all_movie_chunks, ignore_index=True)
-all_movies_titles = all_movies_df['Movie Name'].values
+# LOAD ONCE
+all_movie_chunks, similarity_matrices = load_data()
 
 # -------------------------------
 # POSTER FUNCTION
